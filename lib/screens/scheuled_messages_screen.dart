@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_complete_guide/bloc/message/message_event.dart';
-import 'package:flutter_complete_guide/screens/scheuled_messages_screen.dart';
+import 'package:flutter_complete_guide/bloc/scheluedmessage/scheduled_message_bloc.dart';
+import 'package:flutter_complete_guide/bloc/scheluedmessage/scheduled_message_event.dart';
+import 'package:flutter_complete_guide/bloc/scheluedmessage/scheduled_message_state.dart';
 import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 import 'package:provider/provider.dart';
 import '../widgets/message_list_item.dart';
@@ -10,25 +12,26 @@ import '../bloc/message/message_bloc.dart';
 import '../bloc/message/message_state.dart';
 import '../models/message.dart';
 import '../widgets/list_bottom_loader.dart';
+import '../screens/messages_screen.dart';
 
-class MessagesScreen extends StatefulWidget {
-  static const routeName = '/messages';
+class ScheduledMessagesScreen extends StatefulWidget {
+  static const routeName = '/scheduledMessages';
 
   @override
-  _MessagesScreenState createState() => _MessagesScreenState();
+  _ScheduledMessagesScreenState createState() => _ScheduledMessagesScreenState();
 }
 
-class _MessagesScreenState extends State<MessagesScreen> {
+class _ScheduledMessagesScreenState extends State<ScheduledMessagesScreen> {
   final _scrollController = ScrollController();
   final _scrollThreshold = 200.0;
-  MessageBloc _messageBloc;
+  ScheduledMessageBloc _scheduledMessageBloc;
 
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
-    _messageBloc = BlocProvider.of<MessageBloc>(context);
-    _messageBloc.add(LoadMessages());
+    _scheduledMessageBloc = BlocProvider.of<ScheduledMessageBloc>(context);
+    _scheduledMessageBloc.add(LoadScheduledMessages());
   }
 
 
@@ -52,19 +55,19 @@ class _MessagesScreenState extends State<MessagesScreen> {
               ),
             ),
           ),
-          BlocBuilder<MessageBloc, MessageState>(
+          BlocBuilder<ScheduledMessageBloc, ScheduledMessageState>(
             builder: (context, state) {
-              if (state is MessagesUninitialized) {
+              if (state is ScheduledMessagesUninitialized) {
                 return _buildLoading();
               }
-              if (state is MessagesError) {
+              if (state is ScheduledMessagesError) {
                 return _buildError();
               }
-              if (state is MessagesLoaded) {
-                if (state.messages.isEmpty) {
+              if (state is ScheduledMessagesLoaded) {
+                if (state.scheduledMessages.isEmpty) {
                   return _buildEmptyList();
                 }
-                return _buildMessagesList(state.messages, state.hasReachedMax);
+                return _buildMessagesList(state.scheduledMessages, state.hasReachedMax);
               }
               return _buildEmptyList();
             },
@@ -96,12 +99,12 @@ class _MessagesScreenState extends State<MessagesScreen> {
                 .pop(),
           ),
           SpeedDialChild(
-            child: Icon(Icons.timer),
+            child: Icon(Icons.message),
             backgroundColor: Theme.of(context).accentColor,
-            label: 'Scheduled Messages',
+            label: 'Messages',
             labelStyle: TextStyle(fontSize: 18.0),
             onTap: () => Navigator.of(context)
-                .pushReplacementNamed(ScheduledMessagesScreen.routeName),
+                .pushReplacementNamed(MessagesScreen.routeName),
           ),
         ],
       ),
@@ -133,7 +136,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
         padding: EdgeInsets.symmetric(vertical: 15.0),
         child: ListView.builder(
           itemBuilder: (BuildContext context, int index) {
-            return MessageListItem(message: messages[index], isScheduled: false,);
+            return MessageListItem(message: messages[index], isScheduled: true,);
           },
           itemCount: messages.length,
           controller: _scrollController,
@@ -152,9 +155,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
     final maxScroll = _scrollController.position.maxScrollExtent;
     final currentScroll = _scrollController.position.pixels;
     if (maxScroll - currentScroll <= _scrollThreshold) {
-      _messageBloc.add(LoadMessages());
+      _scheduledMessageBloc.add(LoadScheduledMessages());
     }
   }
 }
-
-

@@ -2,6 +2,9 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_complete_guide/bloc/scheluedmessage/scheduled_message_bloc.dart';
+import 'package:flutter_complete_guide/screens/scheuled_messages_screen.dart';
+import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 import '../bloc/deeplink/DeepLinkBloc.dart';
 import 'package:provider/provider.dart';
 import '../bloc/message/message_bloc.dart';
@@ -90,9 +93,12 @@ class SendMessageScreen extends StatelessWidget {
                       value: BlocProvider.of<ContactBloc>(context),
                       child: BlocProvider.value(
                         value: BlocProvider.of<MessageBloc>(context),
-                        child: Provider.value(
-                            value: Provider.of<DeepLinkBloc>(context),
-                            child: MessageCard(),
+                        child: BlocProvider.value(
+                            value: Provider.of<ScheduledMessageBloc>(context),
+                            child: Provider.value(
+                              value: Provider.of<DeepLinkBloc>(context),
+                              child: MessageCard(),
+                            ),
                         )
                       ),
                     ),
@@ -103,12 +109,40 @@ class SendMessageScreen extends StatelessWidget {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-          child: Icon(Icons.message),
-          onPressed: () {
-            Navigator.of(context)
-                .pushNamed(MessagesScreen.routeName);
-          }),
+      floatingActionButton: SpeedDial(
+        marginRight: 20,
+        marginBottom: 20,
+        animatedIcon: AnimatedIcons.menu_close,
+        animatedIconTheme: IconThemeData(size: 22.0),
+        visible: true,
+        closeManually: false,
+        curve: Curves.bounceIn,
+        overlayColor: Colors.black,
+        overlayOpacity: 0.5,
+        tooltip: 'Menu',
+        backgroundColor: Theme.of(context).accentColor,
+        foregroundColor: Colors.black,
+        elevation: 8.0,
+        shape: CircleBorder(),
+        children: [
+          SpeedDialChild(
+            child: Icon(Icons.message),
+            backgroundColor: Theme.of(context).accentColor,
+            label: 'Messages',
+            labelStyle: TextStyle(fontSize: 18.0),
+            onTap: () => Navigator.of(context)
+                .pushNamed(MessagesScreen.routeName),
+          ),
+          SpeedDialChild(
+            child: Icon(Icons.timer),
+            backgroundColor: Theme.of(context).accentColor,
+            label: 'Scheduled Messages',
+            labelStyle: TextStyle(fontSize: 18.0),
+            onTap: () => Navigator.of(context)
+                .pushNamed(ScheduledMessagesScreen.routeName),
+          ),
+        ],
+      ),
     );
   }
 }

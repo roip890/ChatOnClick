@@ -39,6 +39,7 @@ class AppDatabase {
     // Path with the form: /platform-specific-directory/demo.db
     final dbPath = join(appDocumentDir.path, 'chat_on_click.db');
     var messagesStore = intMapStoreFactory.store("messages");
+    var scheduledMessagesStore = intMapStoreFactory.store("scheduled_messages");
     var contactsStore = intMapStoreFactory.store("contacts");
 //    final database = await databaseFactoryIo.openDatabase(dbPath);
     final database = await databaseFactoryIo.openDatabase(dbPath, version: 1,

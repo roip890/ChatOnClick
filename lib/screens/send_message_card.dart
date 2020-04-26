@@ -5,6 +5,8 @@ import 'package:country_code_picker/country_code_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_complete_guide/bloc/deeplink/DeepLinkBloc.dart';
+import 'package:flutter_complete_guide/bloc/scheluedmessage/scheduled_message_bloc.dart';
+import 'package:flutter_complete_guide/bloc/scheluedmessage/scheduled_message_event.dart';
 import 'package:provider/provider.dart';
 import '../bloc/bloc.dart';
 import '../bloc/contact/contact_state.dart';
@@ -49,6 +51,7 @@ class _MessageCardState extends State<MessageCard>
   Animation<double> _opacityAnimation;
   ContactBloc _contactBloc;
   MessageBloc _messageBloc;
+  ScheduledMessageBloc _scheduledMessageBloc;
   List<Contact> _contacts;
 
   @override
@@ -80,6 +83,7 @@ class _MessageCardState extends State<MessageCard>
     _checkContactsPermissionStatus();
     _contactBloc = BlocProvider.of<ContactBloc>(context);
     _messageBloc = BlocProvider.of<MessageBloc>(context);
+    _scheduledMessageBloc = BlocProvider.of<ScheduledMessageBloc>(context);
   }
 
   @override
@@ -165,7 +169,8 @@ class _MessageCardState extends State<MessageCard>
       dynamic parsed = await PhoneNumber().parse(_messageData['number'], region: _messageData['prefix']);
       if (parsed != null && parsed['e164'] != null) {
         final url = 'https://api.whatsapp.com/send?phone=${parsed['e164']}'
-            + (_withMessage && _messageData['message'].isNotEmpty ? '&text=${_messageData['message']}': '');
+            + (_withMessage && _messageData['message'].isNotEmpty ? '&text=${_messageData['message']}': '')
+            + '\nSent by Chat On Click';
         if (await canLaunch(url)) {
 
           // launch whatsapp
@@ -197,6 +202,83 @@ class _MessageCardState extends State<MessageCard>
 
     } catch (error) {
       _showErrorDialog('Failed to send message');
+    }
+
+    setState(() {
+      _isLoading = false;
+    });
+  }
+
+  Future<void> _scheduleMessage(BuildContext context) async {
+    if (!_formKey.currentState.validate()) {
+      // Invalid!
+      return;
+    }
+    _formKey.currentState.save();
+    setState(() {
+      _isLoading = true;
+    });
+
+    // save or fetch the contact
+    try {
+      if (_messageData['contact'] == null
+          || (_messageData['contact'] as Contact).phones.toList()[0].value != _messageData['number']) {
+        Iterable<Contact> contacts
+        = await ContactsService.getContacts(query : _messageData['number'], withThumbnails: false);
+        _messageData['contact'] = contacts.toList().firstWhere((Contact contact) =>
+        contact.phones.toList().length > 0
+            && contact.phones.toList()[0].value == _messageData['number'], orElse: () => null);
+      }
+    } catch (e) {
+      print(e.toString());
+    }
+
+    // go to send message
+    try {
+      dynamic parsed = await PhoneNumber().parse(_messageData['number'], region: _messageData['prefix']);
+      if (parsed != null && parsed['e164'] != null
+          && _messageData['number'] != null && _messageData['number'].toString().isNotEmpty
+          && _messageData['message'] != null && _messageData['message'].toString().isNotEmpty) {
+        try {
+          final date = await showDatePicker(
+              context: context,
+              firstDate: DateTime.now(),
+              initialDate: DateTime.now(),
+              lastDate: DateTime(2030));
+          if (date != null) {
+            final time = await showTimePicker(
+              context: context,
+              initialTime:
+              TimeOfDay.fromDateTime(DateTime.now()),
+            );
+            DateTime pickedDateTime = DateTime(
+              date.year,
+              date.month,
+              date.day,
+              time.hour,
+              time.minute,
+            );
+
+            Message scheduledMessage = Message(
+                contact: _messageData['contact'],
+                content: _messageData['message'],
+                phoneNumber: MessagePhoneNumber(
+                  prefix: _messageData['prefix'],
+                  number: _messageData['number'],
+                  formatted: parsed['e164'],
+                ),
+                timestamp: pickedDateTime
+            );
+
+            _scheduledMessageBloc.add(AddScheduledMessage(scheduledMessage));
+
+          }
+        } catch (error) {
+          _showErrorDialog( 'Failed to schedule message');
+        }
+      }
+    } catch (error) {
+      _showErrorDialog('Failed to schedule message');
     }
 
     setState(() {
@@ -284,7 +366,13 @@ class _MessageCardState extends State<MessageCard>
                 ),
                 _isLoading
                     ? CircularProgressIndicator()
-                    : _buildSendButton(),
+                    : _withMessage ? Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: <Widget>[
+                        _buildSendButton(),
+                        _buildScheduleButton(context)
+                      ],
+                ) : _buildGoButton(),
               ],
             ),
           ),
@@ -450,15 +538,45 @@ class _MessageCardState extends State<MessageCard>
   }
 
   Widget _buildSendButton() {
-    return RaisedButton(
-      child:
-      Text('${_withMessage ? 'Send' : 'Go'}'),
+    return RaisedButton.icon(
+      icon: Icon(
+        Icons.send
+      ),
+      label: Text('Send'),
       onPressed: _submit,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(30),
       ),
-      padding:
-      EdgeInsets.symmetric(horizontal: 30.0, vertical: 8.0),
+      color: Theme.of(context).primaryColor,
+      textColor: Theme.of(context).primaryTextTheme.button.color,
+    );
+  }
+
+  Widget _buildGoButton() {
+    return RaisedButton.icon(
+      icon: Icon(
+        Icons.send
+      ),
+      label: Text('Go'),
+      onPressed: _submit,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(30),
+      ),
+      color: Theme.of(context).primaryColor,
+      textColor: Theme.of(context).primaryTextTheme.button.color,
+    );
+  }
+
+  Widget _buildScheduleButton(BuildContext context) {
+    return RaisedButton.icon(
+      icon: Icon(
+        Icons.timer
+      ),
+      label: Text('Schedule'),
+      onPressed: () async => await _scheduleMessage(context),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(30),
+      ),
       color: Theme.of(context).primaryColor,
       textColor: Theme.of(context).primaryTextTheme.button.color,
     );
